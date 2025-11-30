@@ -1,0 +1,34 @@
+ros2 pkg create simple_py_pkg --build-type ament_python --dependencies rclpy --komutuyla python paketi oluşturuyruz.
+
+bazı bildirimlerin yeri geldiğinde yapılmaası için gereken dosyalar ve paket hakkında bilgiler içerir -> setup.py ve package.xml dosyası
+pip3 list | grep setuptools -> 59.6.0 sürümünde 
+
+NODE
+her bir node bir görevden sorumludur. 
+nodelar aynı paketteki ve diğer paketteki nodelarla da haberleşebilir -> düğümler tekerlek motorlarını kontrol edebilir veya lidardan gelen verileri işleyip diğer düğümlerle bu bilgileri paylaşabilir.
+
+Düğüm nasıl yazılır: (elimizden geldiğince nesne yönelimli olarak yazacaz)
+
+setup.py değiştiği zaman tekrar build edilir.
+
+düğüm oluştururken nesne tabanlı classlarla oluşturuyoruz.
+
+colcon build --packages-select simple_py_pkg    --> seçili olan paketi build eder (bu ksımda hata almıştım ama;
+source install/setup.bash yaptıktan sonra düzeldi ama bu çözüm kesin değil her seferinde yazılması gerekiyor o yüzden ;
+echo "source ~/ARTEK/ROS2/ros2_ws/install/setup.bash" >> ~/.bashrc bunu yazdıktan sonra source ~/.bashrc diyoruz.)
+
+colcon build --packages-select simple_py_pkg --symlink-install  --bunun diğer build den farkı kodda değişiklik olduğunda sürekli build etmemizi engeller
+
+ros2 node list -> bize çalışan nodeları gösterir
+ros2 node info /counter_node  --bize node hakkında bilgi veriyor. (bunun çalışmasi icin node unda çalışması lazım)
+
+ros2 run simple_py_pkg counter_node --ros-args --remap __node:=abc --bu kod sayesinde ise aynı görevi yapacak node un ismini değiştirerek hata almamızı engelleriz
+
+RQT ile Düğüm Analizi : 
+
+rqt yazarak açtığımız guı ekranında düğümleri görebiliyoruz.
+
+Turtlesim ile Düğüm(node) analizi 
+ilk once indiriyoruz -> sudo apt install ros-humble-turtlesim
+sonra ros2 run turtlesim diyerek çalıştıyoruz
+başka bir terminalde ise ros2 turtlesim turtle_teleop_key komutunu çalıştırarak kalvyeden basılan tuşlara göre hareket etmesini sağlıyoruz
