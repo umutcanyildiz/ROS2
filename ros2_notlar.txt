@@ -32,3 +32,72 @@ Turtlesim ile Düğüm(node) analizi
 ilk once indiriyoruz -> sudo apt install ros-humble-turtlesim
 sonra ros2 run turtlesim diyerek çalıştıyoruz
 başka bir terminalde ise ros2 turtlesim turtle_teleop_key komutunu çalıştırarak kalvyeden basılan tuşlara göre hareket etmesini sağlıyoruz
+
+
+Harika, konu (Topic) mantığını kavramışsın. Bu bölüm ROS 2'nin kalbidir. Notlarını, sorduğun "Kim önce başlarsa ne olur?" sorusunu ve sondaki kodların teknik açıklamalarını ekleyerek detaylandırdım.
+
+İşte düzenlenmiş notların:
+
+-----
+
+# 2 KONULAR (TOPICS) VE HABERLEŞME
+
+### 1\ Temel Mantık: Publisher & Subscriber
+
+ROS 2'de nodelar birbirleriyle **Topic (Konu)** adı verilen kanallar üzerinden haberleşir. Bu yapı **Many-to-Many (Çoktan Çoğa)** iletişime izin verir; yani bir konuya birden fazla kişi abone olabilir veya yayın yapabilir.
+
+  * **Publisher (Yayıncı):** Veriyi üreten ve belirli bir topic ismiyle (örneğin `/kamera_goruntusu`) sisteme salan düğümdür.
+  * **Subscriber (Abone/Dinleyici):** İlgili topic ismine kaydolan ve o topic üzerinden gelen veriyi alıp işleyen düğümdür.
+
+### 2\. Haberleşme Senaryoları (Kim Önce Başlarsa Ne Olur?)
+
+Sorduğun kritik sorunun cevabı şudur:
+
+  * **Önce Publisher Çalışırsa:** Yayıncı veriyi yayınlamaya başlar (örneğin radyoda yayın yapmak gibi). Eğer o an dinleyen (Subscriber) yoksa, veri **boşluğa gider ve kaybolur.**
+  * **Önce Subscriber Çalışırsa:** Abone düğümü açılır ve "Ben `/topic` isimli kanalı dinliyorum" der. Ancak yayıncı henüz açılmadığı için **bekleme modunda kalır.** Yayıncı devreye girdiği anda verileri almaya başlar.
+  * **Bağlantı Şartı:** İki düğümün konuşabilmesi için **Topic İsimlerinin** VE **Veri Tiplerinin (Message Type)** birebir aynı olması gerekir.
+
+-----
+
+### 3\. Uygulama ve Komutlar
+
+**Yayıncıyı Başlatma:**
+Kendi yazdığımız paketteki yayıncı node'u başlatırız:
+
+ros2 run simple_py_pkg channel_node
+
+**Veriyi Manuel Dinleme (Terminalden):**
+Node çalışırken verinin gerçekten akıp akmadığını görmek için abone kodu yazmadan önce terminalden kontrol ederiz:
+
+ros2 topic echo /channel_something
+
+*(Not: `/channel_something` burada kodun içinde belirlenen topic ismidir.)*
+
+
+### 4\. Turtlesim ile Topic ve Mesaj Analizi
+
+Turtlesim simülasyonunda robotun hareket etmesini sağlayan mesaj tiplerini anlamak için kullandığımız komutların detayları şöyledir:
+
+**A. Mesajın Yapısını Görmek:**
+Robotlar genellikle `geometry_msgs` (geometri mesajları) kullanır. `Twist` mesajı robotun hız komutudur.
+
+ros2 interface show geometry_msgs/msg/Twist
+
+*Bu komutun çıktısı bize mesajın iç yapısını gösterir:*
+
+  * **Vector3 linear:** Çizgisel Hız (x: ileri/geri, y: sağ/sol, z: yukarı/aşağı)
+  * **Vector3 angular:** Açısal Hız (x, y, z eksenlerinde dönme)
+
+**B. Alt Mesajı Görmek:**
+Yukarıdaki `Twist` mesajının içinde `Vector3` diye bir veri tipi vardır. Onun ne olduğunu görmek için:
+
+ros2 interface show geometry_msgs/msg/Vector3
+
+*Çıktı:* `float64 x`, `float64 y`, `float64 z` (Koordinatların ondalıklı sayı olduğunu belirtir).
+
+**C. Canlı Hız Verisini Dinlemek:**
+Turtlesim'de kaplumbağayı klavyeyle sürerken, arka planda hangi hız verilerinin gönderildiğini canlı izlemek için:
+
+ros2 topic echo /turtle1/cmd_vel
+
+/turtle1/cmd_vel`:** Kaplumbağa 1'in hız komutlarını (Command Velocity) dinlediği topic ismidir. Sen tuşa bastığında bu topic üzerinden sayısal değerler akar.

@@ -1,6 +1,6 @@
-DÜĞÜM (NODE) OLUŞTURMA VE TEMEL KAVRAMLAR
+1.DÜĞÜM (NODE) OLUŞTURMA VE TEMEL KAVRAMLAR
 
-1. PAKET OLUŞTURMA VE YAPILANDIRMA
+1.1 PAKET OLUŞTURMA VE YAPILANDIRMA
 ----------------------------------
 ROS 2'de Python tabanlı bir paket oluşturmak için standart komut yapısı:
 
@@ -14,7 +14,7 @@ ROS 2'de Python tabanlı bir paket oluşturmak için standart komut yapısı:
 - setuptools: Python paketlerinin dağıtımı için gereklidir.
   Kontrol komutu: pip3 list | grep setuptools
 
-2. NODE (DÜĞÜM) NEDİR?
+1.2. NODE (DÜĞÜM) NEDİR?
 ----------------------
 Her bir Node (düğüm), robotik sistemde tek bir görevden sorumludur.
 
@@ -22,7 +22,7 @@ Her bir Node (düğüm), robotik sistemde tek bir görevden sorumludur.
 - Haberleşme: Aynı veya farklı paketlerdeki diğer node'larla veri alışverişi yapabilir.
 - Yazılım Mimarisi: Düğümler, kodun yönetilebilir olması için Nesne Yönelimli Programlama (OOP) kullanılarak, yani Class (Sınıf) yapısı ile oluşturulmalıdır.
 
-3. DERLEME (BUILD) VE ORTAM KURULUMU
+1.3. DERLEME (BUILD) VE ORTAM KURULUMU
 ------------------------------------
 Bir paket veya kod değiştiğinde çalışma alanının (workspace) derlenmesi gerekir.
 
@@ -39,7 +39,7 @@ Derleme sonrası "source install/setup.bash" yapılmazsa ROS 2 paketi göremez. 
     echo "source ~/ARTEK/ROS2/ros2_ws/install/setup.bash" >> ~/.bashrc
     source ~/.bashrc
 
-4. NODE ÇALIŞTIRMA VE KOMUT SATIRI İŞLEMLERİ
+1.4. NODE ÇALIŞTIRMA VE KOMUT SATIRI İŞLEMLERİ
 --------------------------------------------
 Oluşturulan node'u çalıştırmak için:
     ros2 run simple_py_pkg counter_node
@@ -52,7 +52,7 @@ Node İsmi Değiştirme (Remapping):
 Aynı koddan birden fazla node çalıştırmak istendiğinde isim çakışmasını önlemek için çalışma anında isim değiştirilebilir:
     ros2 run simple_py_pkg counter_node --ros-args --remap __node:=yeni_node_ismi
 
-5. ANALİZ VE SİMÜLASYON ARAÇLARI
+1.5. ANALİZ VE SİMÜLASYON ARAÇLARI
 --------------------------------
 RQT (Görsel Analiz):
 Terminalden "rqt" yazılarak açılan GUI ile node'ların bağlantıları ve sistemin genel durumu görsel olarak analiz edilebilir.

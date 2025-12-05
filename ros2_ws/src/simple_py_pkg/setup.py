@@ -25,7 +25,9 @@ setup(
     entry_points={
         'console_scripts': [
             "py_node = simple_py_pkg.simple_py_node:main",
-            "counter_node = simple_py_pkg.counter_node:main" #muhakkak buraya da eklenir
+            "counter_node = simple_py_pkg.counter_node:main", #muhakkak buraya da eklenir
+            "channel_node = simple_py_pkg.televison:main",
+            "remote_control_node = simple_py_pkg.remote_controller:main" 
 
         ],
     },
