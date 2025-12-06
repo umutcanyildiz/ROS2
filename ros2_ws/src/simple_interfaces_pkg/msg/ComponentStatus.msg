@@ -1,0 +1,4 @@
+bool camera_is_ready
+bool lidar_is_ready
+bool motor_is_ready
+string debug_message
