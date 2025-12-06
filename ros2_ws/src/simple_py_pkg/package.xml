@@ -9,7 +9,7 @@
 
   <depend>rclpy</depend>
   <depend>example_interfaces</depend> <!-- yeni bir bağımlılık eklendi -->
-  <!-- ve her bagimlilik eklendiginde tekrar colcon build yapilmali -->
+  <!-- ve her bagimlilik eklendiginde tekrar colcon build yapilmali (service olusturma kisminda da olmasiş gerekiyor) --> 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>
   <test_depend>ament_pep257</test_depend>
