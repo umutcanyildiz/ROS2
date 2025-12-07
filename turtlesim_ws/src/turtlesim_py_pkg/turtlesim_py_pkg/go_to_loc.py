@@ -3,107 +3,117 @@ import sys
 import rclpy
 import math
 from rclpy.node import Node
-from geometry_msgs.msg import Twist # Robotu hareket ettirmek için hız mesajı
-from turtlesim.msg import Pose    # Robotun konumunu okumak için pozisyon mesajı
+from geometry_msgs.msg import Twist 
+from turtlesim.msg import Pose    
+from turtlesim_interfaces.msg import Turtle  
+from turtlesim_interfaces.msg import TurtleArray
+from turtlesim_interfaces.srv import CatchTurtle 
 
 class GoToLocationNode(Node): 
     def __init__(self):
-        # 1. Node ismini başlatıyoruz
         super().__init__("go_to_location_node") 
         
-        # 2. Değişkenlerin Tanımlanması
-        self.pose = None # HATA ÖNLEYİCİ: Henüz veri gelmediği için başlangıçta boş atıyoruz
-        self.pose_threshold_linear = 0.1 # Hedefe ne kadar yaklaşırsak "vardık" sayacağız? (Tolerans)
-        self.pose_threshold_angular = 0.01
-        # Terminalden gelen argümanları alıyoruz (Örn: ros2 run ... 5.0 5.0)
-        # sys.argv[0] dosya adıdır, o yüzden 1 ve 2. elemanları alıyoruz.
-        self.target_x = float(sys.argv[1])  
-        self.target_y = float(sys.argv[2]) 
+        self.pose = None 
+        self.new_turtle_to_catch = None
         
-        # 3. Publisher (Yayıncı) Oluşturma
-        # Kaplumbağaya hız komutlarını göndereceğimiz kanal
-        self.publisher_ = self.create_publisher(
-            Twist,
-            "/turtle1/cmd_vel",
-            10
-        )
-        
-        # 4. Subscriber (Abone) Oluşturma
-        # Kaplumbağanın o an nerede olduğunu simülasyondan dinlediğimiz kanal
-        self.subscription_ = self.create_subscription(
-            Pose,
-            "/turtle1/pose",
-            self.pose_callback_pose, # Veri geldiğinde bu fonksiyona git
-            10
-        )
-        
-        # 5. Timer (Zamanlayıcı) Oluşturma
-        # Kontrol döngüsü saniyede kaç kez çalışacak? (Burada 1 saniye ayarlanmış)
-        # Not: Gerçek robotlarda genelde 0.1 veya 0.05 gibi daha seri değerler kullanılır.
-        self.timer_ = self.create_timer(1.0, self.turtle_contoller)
+        # Hedef yakalandı mı? (Sürekli servis çağırmamak için bayrak)
+        self.catch_request_sent = False 
 
-        self.get_logger().info(f"Hedefe Gitme Node'u Başladı! Hedef: X={self.target_x}, Y={self.target_y}")
+        # Parametreler
+        self.kp_linear = 1.5
+        self.kp_angular = 4.0
+        self.pose_threshold_linear = 0.1 
+        self.pose_threshold_angular = 0.05
+
+        # Publisher & Subscriber
+        self.publisher_ = self.create_publisher(Twist, "/turtle1/cmd_vel", 10)
+        self.subscription_ = self.create_subscription(Pose, "/turtle1/pose", self.pose_callback_pose, 10)
+        self.new_turtle_subscriber_ = self.create_subscription(TurtleArray, "/new_turtles", self.callback_new_turtles, 10)
+        
+        # CLIENT: Yöneticiye "Yakaladım" demek için
+        self.catch_client_ = self.create_client(CatchTurtle, "/catch_turtle")
+        while not self.catch_client_.wait_for_service(1.0):
+            self.get_logger().warn("Catch servisi bekleniyor...")
+
+        self.timer_ = self.create_timer(0.01, self.turtle_contoller) # Daha akıcı kontrol için 0.01
+
+        self.get_logger().info("Avcı Robot Hazır!")
     
-    # Subscriber'dan veri geldiğinde çalışan fonksiyon
+    def callback_new_turtles(self, msg):
+        # Eğer listem boşsa ve yeni kaplumbağa varsa ilkini hedef al
+        if len(msg.turtles) > 0 and self.new_turtle_to_catch is None:
+            self.new_turtle_to_catch = msg.turtles[0]
+            self.catch_request_sent = False # Yeni hedef için bayrağı sıfırla
+            self.get_logger().info(f"YENİ HEDEF: {self.new_turtle_to_catch.name}")
+
     def pose_callback_pose(self, msg):
-        # Gelen konum mesajını (msg) sınıfın değişkenine kaydediyoruz ki
-        # diğer fonksiyonlarda kullanabilelim.
         self.pose = msg
     
-    # Ana Kontrol Döngüsü (Beyin Kısmı)
     def turtle_contoller(self):
-        # Eğer henüz subscriber'dan veri gelmediyse işlem yapma, bekle.
-        if self.pose is None:
-            self.get_logger().info("Konum verisi bekleniyor...")
+        # Veriler hazır değilse veya hedef yoksa dur
+        if self.pose is None or self.new_turtle_to_catch is None:
             return
 
-        msg = Twist() # Göndereceğimiz hız mesajı taslağını oluşturuyoruz
-
-        # --- MATEMATİKSEL HESAPLAMALAR ---
-        
-        # X ve Y eksenindeki farkı bul (Hata Hesaplama)
-        dist_x = self.target_x - self.pose.x 
-        dist_y = self.target_y - self.pose.y
-
-        # Pisagor teoremi ile kuş bakışı mesafeyi (hipotenüs) bul
-        distance = math.sqrt(dist_x**2 + dist_y**2) 
-        
-        # Hedefe gitmek için robotun bakması gereken açıyı hesapla (Arctan2 fonksiyonu)
-        target_theta = math.atan2(dist_y, dist_x) 
-        
-        # O anki açı ile hedef açı arasındaki fark
+        msg = Twist()
+        dist_x = self.new_turtle_to_catch.x - self.pose.x
+        dist_y = self.new_turtle_to_catch.y - self.pose.y
+        distance = math.sqrt(dist_x**2 + dist_y**2)
+        target_theta = math.atan2(dist_y, dist_x)
         angle_diff = target_theta - self.pose.theta
 
-        # --- HAREKET MANTIĞI (ALGORİTMA) ---
+        # Açı farkını normalize et (-pi ile +pi arasına sıkıştır)
+        # Bu sayede robot 350 derece dönmek yerine tersten 10 derece döner
+        if angle_diff > math.pi:
+            angle_diff -= 2 * math.pi
+        elif angle_diff < -math.pi:
+            angle_diff += 2 * math.pi
 
-        # Durum 1: Yönümüz hedefe bakmıyorsa, önce dön!
-        # (Açı farkı toleranstan büyükse sadece olduğu yerde döner)
-        if abs(angle_diff) > self.pose_threshold_angular:
-            msg.linear.x = 0.0 # İlerleme durur
-            msg.angular.z = angle_diff # Açı farkı kadar dön (Basit P Kontrol)
-        
-        # Durum 2: Yönümüz hedefe bakıyor, artık ilerleyebiliriz.
+        # --- Hareket Mantığı ---
+        if distance > self.pose_threshold_linear:
+            # Hedefe git
+            msg.linear.x = self.kp_linear * distance
+            msg.angular.z = self.kp_angular * angle_diff
         else:
-            # Hedefe henüz varmadıysak ilerle
-            if distance >= self.pose_threshold_linear:
-                msg.linear.x = distance # Mesafeye orantılı hız (Uzaksa hızlı, yakınsa yavaş)
-                msg.angular.z = 0.0 # Dönmeyi bırak
+            # Hedefe VARILDI
+            msg.linear.x = 0.0
+            msg.angular.z = 0.0
             
-            # Hedefe vardıysak dur
-            else:
-                msg.linear.x = 0.0
-                msg.angular.z = 0.0
-                self.get_logger().info("Hedefe Varıldı!")
-                # İsteğe bağlı: exit() diyerek node kapatılabilir.
+            # Eğer daha önce istek atmadıysak, şimdi atalım
+            if not self.catch_request_sent:
+                self.get_logger().info(f"YAKALANDI: {self.new_turtle_to_catch.name}")
+                self.call_catch_turtle_service(self.new_turtle_to_catch.name)
+                self.catch_request_sent = True 
+                # Not: self.new_turtle_to_catch = None yapmıyoruz. 
+                # Bunu topic'ten yeni liste gelince zaten güncelleyeceğiz.
 
-        # Hesaplanan hız komutunu robota gönder
         self.publisher_.publish(msg)
 
+    def call_catch_turtle_service(self, turtle_name): 
+        request = CatchTurtle.Request()
+        request.name = turtle_name
+        
+        future = self.catch_client_.call_async(request)
+        future.add_done_callback(
+            lambda future: self.callback_catch_turtle_response(future, turtle_name)
+        )
+
+    def callback_catch_turtle_response(self, future, turtle_name):
+        try:
+            response = future.result()
+            if response.success:
+                self.get_logger().info(f"{turtle_name} başarıyla silindi.")
+                # Başarılı olunca hedefi boşa çıkar, yeni hedef bekle
+                self.new_turtle_to_catch = None
+            else:
+                self.get_logger().warn(f"{turtle_name} silinemedi!")
+        except Exception as e:
+            self.get_logger().error("Catch servisi hatası: %r" % (e,))
+
 def main(args=None):
-    rclpy.init(args=args) # ROS 2 iletişimini başlat
-    node = GoToLocationNode() # Bizim yazdığımız sınıfı oluştur
-    rclpy.spin(node) # Node'u sürekli çalışır halde tut (Ctrl+C basılana kadar)
-    rclpy.shutdown() # Çıkışta temizlik yap
+    rclpy.init(args=args)
+    node = GoToLocationNode()
+    rclpy.spin(node)
+    rclpy.shutdown()
 
 if __name__ == "__main__":
     main()

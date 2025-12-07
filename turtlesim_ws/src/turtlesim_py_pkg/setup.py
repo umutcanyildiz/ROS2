@@ -26,6 +26,7 @@ setup(
         'console_scripts': [
             "vel_controller = turtlesim_py_pkg.vel_controller:main",
             "go_to_location = turtlesim_py_pkg.go_to_loc:main",
+            "spawn_turtle = turtlesim_py_pkg.spawn_turtle:main",
         ],
     },
 )
